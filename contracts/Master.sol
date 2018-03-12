@@ -119,15 +119,14 @@ contract Coin {
     struct History {
         uint256 time;
         uint256 cost;
-        string toName;
     }
     
     mapping(address => History[]) histories;
     
-    function send(address receiver, string toName, uint256 amount) public {
+    function send(address receiver, uint256 amount) public {
         if (msg.sender.balance < amount) throw;
         receiver.transfer(amount);
-        histories[msg.sender].push(History(currTimeInSeconds(),amount, toName));
+        histories[msg.sender].push(History(currTimeInSeconds(),amount));
     }
 
     function getHistorise(address driver) public returns (string result) {
@@ -156,9 +155,10 @@ contract Operation {
     }
  
     function payForRoads(Master master, Coin coin, uint8[] roadIds) public returns (uint8 result) {
-        RoadManagerAndRoadIds[] list;
-        for (uint8 i = 0; i < roadIds.length; i++) {
-            var (id, name, mAddress) = master.getRoadMasterInfo(roadIds[i]);
+        RoadManagerAndRoadIds[] storage list;
+        string[] nameList;
+        for (uint i = 0; i < roadIds.length; i++) {
+            var (id, , mAddress) = master.getRoadMasterInfo(roadIds[i]);
             bool has = false;
             for (uint j = 0; j < list.length; j++) {
                 if (list[i].roadManagerId == id) {
@@ -167,9 +167,13 @@ contract Operation {
                 }
             }
             if (!has) {
-                uint8[] = 
-                list.push(RoadManagerAndRoadIds(id, roadIds[i]));
+                uint8[] r;
+                r.push(roadIds[i]);
+                list.push(RoadManagerAndRoadIds(id, mAddress, r));
             }
+        }
+        for (uint k = 0; k < list.length; k++) {
+            coin.send(list[k].roadManagerAddress, master.computerBalance(list[k].roadIds));
         }
     }
 }
