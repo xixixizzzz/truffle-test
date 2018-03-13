@@ -90,6 +90,12 @@ contract Master {
     {
         return (roadManagerMasterList[areaMasterList[roadMasterList[parmRoadID].areaId].roadManagerId].roadManagerId, roadManagerMasterList[areaMasterList[roadMasterList[parmRoadID].areaId].roadManagerId].roadManagerName, roadManagerMasterList[areaMasterList[roadMasterList[parmRoadID].areaId].roadManagerId].roadManagerAddress);
     }
+    
+    function getRoadMasterName(uint8 roadManagerId) public
+        returns (bytes name)
+    {
+        name = bytes(roadManagerMasterList[roadManagerId].roadManagerName);
+    }
 
     // function getRoadInfoById(uint8 roadId) public returns (uint8, string, uint8, address, string) {
     //     return (roadInfos[roadId].roadId, roadInfos[roadId].name, roadInfos[roadId].cost, roadInfos[roadId].owner, roadInfos[roadId].describe);
@@ -118,27 +124,35 @@ contract Coin {
     
     struct History {
         uint256 time;
+        uint8 roadManagerId;
         uint256 cost;
     }
     
     mapping(address => History[]) histories;
     
-    function send(address receiver, uint256 amount) public {
+    function send(address receiver, uint8 roadManagerId, uint256 amount) public
+    {
         if (msg.sender.balance < amount) throw;
         receiver.transfer(amount);
-        histories[msg.sender].push(History(currTimeInSeconds(),amount));
+        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId,amount));
     }
 
-    function getHistorise(address driver) public returns (string result) {
+    function getHistoriy(address driver, Master master, uint index) public
+        returns (uint256, uint8, uint256)
+    {
         History[] h = histories[driver];
-        result = "[";
-        for (uint i = 0; i < h.length; i++) {
-            if (i != h.length - 1) {
-                // result = result + '{time:' + h[i].time + ', cost:' + h[i].cost + ', toName:' + h[i].toName + '},';
-            } else {
-                
-            }
-        }
+        if (h.length <= index) throw;
+        return (h[index].time, h[index].roadManagerId, h[index].cost);
+    }
+    
+    function getHistoriyLength(address driver) public
+        returns (uint length)
+    {
+        length = histories[driver].length;
+    }
+    
+    function getBalance() public returns (uint256) {
+        return msg.sender.balance;
     }
 
     function currTimeInSeconds() internal returns (uint256) {
@@ -173,7 +187,8 @@ contract Operation {
             }
         }
         for (uint k = 0; k < list.length; k++) {
-            coin.send(list[k].roadManagerAddress, master.computerBalance(list[k].roadIds));
+            uint256 rstBalance = master.computerBalance(list[k].roadIds);
+            coin.send(list[k].roadManagerAddress, list[k].roadManagerId, rstBalance);
         }
     }
 }
