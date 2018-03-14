@@ -67,14 +67,18 @@ contract Master {
 		}
 	}
 	
-	/// 司机调用
+	// 道路距离
+	function getDistance(uint8 parmRoadID) public
+	        returns (uint256)
+    {
+        return roadMasterList[parmRoadID].distance;
+    }
+
 	/// 计算费用
-	function computerBalance(uint8[] parmRoadID) public
-		returns (uint256 rstBalance)
+	function getBalance(uint8 parmRoadID) public
+	        returns (uint256 rstBalance)
 	{
-		for (uint i = 0; i < parmRoadID.length; i++) {
-		    rstBalance += areaMasterList[roadMasterList[parmRoadID[i]].areaId].unitPrice * roadMasterList[parmRoadID[i]].distance;
-		}
+	    rstBalance = areaMasterList[roadMasterList[parmRoadID].areaId].unitPrice * roadMasterList[parmRoadID].distance;
 	}
 	
 	/// 内部函数
@@ -92,32 +96,10 @@ contract Master {
     }
     
     function getRoadMasterName(uint8 roadManagerId) public
-        returns (bytes name)
+        returns (string name)
     {
-        name = bytes(roadManagerMasterList[roadManagerId].roadManagerName);
+        name = roadManagerMasterList[roadManagerId].roadManagerName;
     }
-
-    // function getRoadInfoById(uint8 roadId) public returns (uint8, string, uint8, address, string) {
-    //     return (roadInfos[roadId].roadId, roadInfos[roadId].name, roadInfos[roadId].cost, roadInfos[roadId].owner, roadInfos[roadId].describe);
-    // }
-
-    // function addDrivingHistory(address driver, uint time, uint8 cost, uint8[] roadIds) public {
-    //     drivingHistories[driver].push(DrivingHistory(driver, time, cost, roadIds));
-    // }
-    
-    // function getDrivingHistorise(address driver) public returns (uint[] histories) {
-    //     DrivingHistory[] d = drivingHistories[driver];
-    //     for (uint i = 0; i < d.length; i++) {
-    //         // histories.push({driver: d[i].driver, time: d[i].time, cost: d[i].cost, roadIds: d[i].roadIds});
-    //     }
-    // }
-    
-    // function getAllCost(uint8[] roadIds) public returns (uint8 result) {
-    //     for (uint i = 0; i < roadIds.length; i++) {
-    //         var (,,cost,,) =getRoadInfoById(roadIds[i]);
-    //         result += cost;
-    //     }
-    // }
 }
 
 contract Coin {
@@ -187,8 +169,28 @@ contract Operation {
             }
         }
         for (uint k = 0; k < list.length; k++) {
-            uint256 rstBalance = master.computerBalance(list[k].roadIds);
+            uint256 rstBalance = computerBalance(list[k].roadIds, master);
             coin.send(list[k].roadManagerAddress, list[k].roadManagerId, rstBalance);
         }
     }
+    
+    	/// 司机调用
+	/// 计算距离
+	function computerDistance(uint8[] parmRoadID, Master master) public
+			returns (uint256 rstDistance)
+	{
+		for (uint i = 0; i < parmRoadID.length; i++) {
+		    rstDistance += master.getDistance(parmRoadID[i]);
+		}
+	}
+	
+	/// 司机调用
+	/// 计算费用
+	function computerBalance(uint8[] parmRoadID, Master master) public
+		returns (uint256 rstBalance)
+	{
+		for (uint i = 0; i < parmRoadID.length; i++) {
+		    rstBalance += master.getBalance(parmRoadID[i]);
+		}
+	}
 }
