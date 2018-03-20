@@ -1,4 +1,4 @@
-pragma solidity ^0.4.0;
+﻿pragma solidity ^0.4.0;
 contract Master {
 
     struct AreaMaster {
@@ -112,10 +112,10 @@ contract Coin {
     
     mapping(address => History[]) histories;
     
-    function send(address receiver, uint8 roadManagerId, uint256 amount) public
+    function send(address receiver, uint8 roadManagerId, uint256 amount) public payable
     {
         if (msg.sender.balance < amount) throw;
-        receiver.transfer(amount);
+        receiver.send(amount);
         histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId,amount));
     }
 
@@ -150,7 +150,7 @@ contract Operation {
         uint8[] roadIds;
     }
  
-    function payForRoads(Master master, Coin coin, uint8[] roadIds) public returns (uint8 result) {
+    function payForRoads(Master master, Coin coin, uint8[] roadIds) public payable returns (uint8 result) {
         RoadManagerAndRoadIds[] storage list;
         string[] nameList;
         for (uint i = 0; i < roadIds.length; i++) {
