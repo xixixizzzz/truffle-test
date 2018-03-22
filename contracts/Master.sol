@@ -104,19 +104,31 @@ contract Master {
 
 contract Coin {
     
+    address organizer;
+    
     struct History {
         uint256 time;
         uint8 roadManagerId;
         uint256 cost;
     }
     
+    mapping(address => uint256) balance;
     mapping(address => History[]) histories;
+    address[] masterAddress;
     
-    function send(address receiver, uint8 roadManagerId, uint256 amount) public payable
+    function Coin()
     {
-        if (msg.sender.balance < amount) throw;
-        receiver.send(amount);
-        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId,amount));
+        organizer = msg.sender;
+    }
+    
+    function send(address receiver, uint8 roadManagerId) public payable
+    {
+        if (msg.sender.balance < msg.value) throw;
+        balance[receiver] += msg.value;
+        if (balance[receiver] == 0) {
+            masterAddress.push(receiver);
+        }
+        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId,msg.value));
     }
 
     function getHistoriy(address driver, Master master, uint index) public
@@ -140,6 +152,27 @@ contract Coin {
     function currTimeInSeconds() internal returns (uint256) {
         return now;
     }
+    
+    function getMasterAddress() returns (address[]) {
+        if (msg.sender == organizer) {
+            return masterAddress;
+        }
+    }
+    
+    function getBalance(address masterAddress) returns (uint256 result)
+    {
+        if (msg.sender == organizer) { 
+            result = balance[masterAddress];
+        }
+    }
+
+    function destroy() { // so funds not locked in contract forever
+        if (msg.sender == organizer) { 
+            delete masterAddress;
+            suicide(organizer); // send funds to organizer
+        }
+    }
+    
 }
 
 contract Operation {
@@ -170,7 +203,7 @@ contract Operation {
         }
         for (uint k = 0; k < list.length; k++) {
             uint256 rstBalance = computerBalance(list[k].roadIds, master);
-            coin.send(list[k].roadManagerAddress, list[k].roadManagerId, rstBalance);
+            coin.send(list[k].roadManagerAddress, list[k].roadManagerId);
         }
     }
     
