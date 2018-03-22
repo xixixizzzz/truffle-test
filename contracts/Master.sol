@@ -166,10 +166,14 @@ contract Coin {
         }
     }
 
-    function destroy() { // so funds not locked in contract forever
+    function sendToMaster() { // so funds not locked in contract forever
         if (msg.sender == organizer) { 
+            for (uint8 i = 0; i < masterAddress.length; i++) {
+                if (this.balance > balance[masterAddress[i]]) {
+                    masterAddress[i].send(balance[masterAddress[i]]);
+                }
+            }
             delete masterAddress;
-            suicide(organizer); // send funds to organizer
         }
     }
     
