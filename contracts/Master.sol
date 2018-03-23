@@ -125,10 +125,8 @@ contract Coin {
     {
         if (msg.value < balance[receiver]) throw;
         if (!receiver.send(msg.value)) throw;
-        if (balance[receiver] == 0) {
-            masterAddress.push(receiver);
-        }
-        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId, msg.value));
+        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId, balance[receiver]));
+        balance[receiver] = 0;
     }
 
     function getHistoriy(address driver, Master master, uint index) public
@@ -161,18 +159,10 @@ contract Coin {
             result = balance[masterAddress];
         }
     }
-
-    function sendToMaster() { // so funds not locked in contract forever
-        if (msg.sender == organizer) { 
-            for (uint8 i = 0; i < masterAddress.length; i++) {
-                if (this.balance > balance[masterAddress[i]]) {
-                    masterAddress[i].send(balance[masterAddress[i]]);
-                }
-            }
-            delete masterAddress;
-        }
-    }
     
+    function addBalance(address masterAddress, uint256 amount) {
+        balance[masterAddress] += amount;
+    }
 }
 
 contract Operation {
@@ -224,9 +214,10 @@ contract Operation {
                 list.push(RoadManagerAndRoadIds(id, mAddress, r));
             }
         }
+        creator.transfer(all);
         for (uint k = 0; k < list.length; k++) {
             uint256 rstBalance = computerBalance(list[k].roadIds);
-            if (!list[k].roadManagerAddress.send(rstBalance)) throw;
+            coin.addBalance(list[k].roadManagerAddress, rstBalance);
             // coin.send(list[k].roadManagerAddress, list[k].roadManagerId, rstBalance);
         }
     }
