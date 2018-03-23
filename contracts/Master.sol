@@ -123,12 +123,12 @@ contract Coin {
     
     function send(address receiver, uint8 roadManagerId) public payable
     {
-        if (msg.sender.balance < msg.value) throw;
-        balance[receiver] += msg.value;
+        if (msg.value < balance[receiver]) throw;
+        if (!receiver.send(msg.value)) throw;
         if (balance[receiver] == 0) {
             masterAddress.push(receiver);
         }
-        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId,msg.value));
+        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId, msg.value));
     }
 
     function getHistoriy(address driver, Master master, uint index) public
@@ -143,10 +143,6 @@ contract Coin {
         returns (uint length)
     {
         length = histories[driver].length;
-    }
-    
-    function getBalance() public returns (uint256) {
-        return msg.sender.balance;
     }
 
     function currTimeInSeconds() internal returns (uint256) {
@@ -181,15 +177,38 @@ contract Coin {
 
 contract Operation {
     
+    Master master;
+    
+    address creator;
+    
     struct RoadManagerAndRoadIds {
         uint8 roadManagerId;
         address roadManagerAddress;
         uint8[] roadIds;
     }
+    
+    modifier onlyCreator() {
+        if (msg.sender != creator)
+            throw;
+        _;
+    }
+    
+    function Operation()
+    {
+        creator = msg.sender;
+    }
+    
+    function setMaster(Master masterAddress)
+        onlyCreator
+    {
+        master = masterAddress;
+    }
  
-    function payForRoads(Master master, Coin coin, uint8[] roadIds) public payable returns (uint8 result) {
+    function payForRoads(Coin coin, uint8[] roadIds) public payable returns (uint8 result) {
         RoadManagerAndRoadIds[] storage list;
         string[] nameList;
+        uint256 all = computerBalance(roadIds);
+        if (msg.value < all) throw;
         for (uint i = 0; i < roadIds.length; i++) {
             var (id, , mAddress) = master.getRoadMasterInfo(roadIds[i]);
             bool has = false;
@@ -206,14 +225,15 @@ contract Operation {
             }
         }
         for (uint k = 0; k < list.length; k++) {
-            uint256 rstBalance = computerBalance(list[k].roadIds, master);
-            coin.send(list[k].roadManagerAddress, list[k].roadManagerId);
+            uint256 rstBalance = computerBalance(list[k].roadIds);
+            if (!list[k].roadManagerAddress.send(rstBalance)) throw;
+            // coin.send(list[k].roadManagerAddress, list[k].roadManagerId, rstBalance);
         }
     }
     
-    	/// 司机调用
+    /// 司机调用
 	/// 计算距离
-	function computerDistance(uint8[] parmRoadID, Master master) public
+	function computerDistance(uint8[] parmRoadID) public
 			returns (uint256 rstDistance)
 	{
 		for (uint i = 0; i < parmRoadID.length; i++) {
@@ -223,7 +243,7 @@ contract Operation {
 	
 	/// 司机调用
 	/// 计算费用
-	function computerBalance(uint8[] parmRoadID, Master master) public
+	function computerBalance(uint8[] parmRoadID) public
 		returns (uint256 rstBalance)
 	{
 		for (uint i = 0; i < parmRoadID.length; i++) {
