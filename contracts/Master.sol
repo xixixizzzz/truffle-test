@@ -24,6 +24,7 @@ contract Master {
     mapping (uint8 => AreaMaster) areaMasterList;
     mapping (uint8 => RoadMaster) roadMasterList;
     mapping (uint8 => RoadManagerMaster) roadManagerMasterList;
+    mapping (uint8 => uint8) roadMapping;
 
     function Master() public {
         creator = msg.sender;
@@ -59,7 +60,7 @@ contract Master {
 
 	/// 司机调用
 	/// 计算距离
-	function computerDistance(uint8[] parmRoadID) public
+	function computerDistance(uint8[] parmRoadID) public constant
 			returns (uint256 rstDistance)
 	{
 		for (uint i = 0; i < parmRoadID.length; i++) {
@@ -68,14 +69,14 @@ contract Master {
 	}
 	
 	// 道路距离
-	function getDistance(uint8 parmRoadID) public
+	function getDistance(uint8 parmRoadID) public constant
 	        returns (uint256)
     {
         return roadMasterList[parmRoadID].distance;
     }
 
 	/// 计算费用
-	function getBalance(uint8 parmRoadID) public
+	function getBalance(uint8 parmRoadID) public constant
 	        returns (uint256 rstBalance)
 	{
 	    rstBalance = areaMasterList[roadMasterList[parmRoadID].areaId].unitPrice * roadMasterList[parmRoadID].distance;
@@ -83,22 +84,68 @@ contract Master {
 	
 	/// 内部函数
 	/// 取得单价
-	function getUnitPrice(uint8 parmAreaID) internal
+	function getUnitPrice(uint8 parmAreaID) internal constant
 		returns (uint256 rstUnitPrice)
 	{
 		rstUnitPrice = areaMasterList[parmAreaID].unitPrice;
 	}
 
-    function getRoadMasterInfo(uint8 parmRoadID) public
+    function getRoadMasterInfo(uint8 parmRoadID) public constant
         returns (uint8, string, address)
     {
         return (roadManagerMasterList[areaMasterList[roadMasterList[parmRoadID].areaId].roadManagerId].roadManagerId, roadManagerMasterList[areaMasterList[roadMasterList[parmRoadID].areaId].roadManagerId].roadManagerName, roadManagerMasterList[areaMasterList[roadMasterList[parmRoadID].areaId].roadManagerId].roadManagerAddress);
     }
     
-    function getRoadMasterName(uint8 roadManagerId) public
+    function getRoadMasterName(uint8 roadManagerId) public constant
         returns (string name)
     {
         name = roadManagerMasterList[roadManagerId].roadManagerName;
+    }
+    
+    function getRoadMasterAddress(uint8 roadManagerId) public constant
+        returns (address roadManagerAddress)
+    {
+        roadManagerAddress = roadManagerMasterList[roadManagerId].roadManagerAddress;
+    }
+    
+    function getRoadMasterIdListSize(uint8[] parmRoadID) public constant
+        returns (uint8 size)
+    {
+        size = 0;
+        for (uint i = 0; i < parmRoadID.length; i++) {
+		    uint8 roadManagerId = areaMasterList[roadMasterList[parmRoadID[i]].areaId].roadManagerId;
+		    if (roadMapping[roadManagerId] != 1) {
+		        roadMapping[roadManagerId] = 1;
+		        size++;
+		    }
+		}
+    }
+    
+    function getRoadMasterId(uint8[] parmRoadID, uint8 index) public constant
+        returns (uint8 size)
+    {
+        size = 0;
+        for (uint i = 0; i < parmRoadID.length; i++) {
+		    uint8 roadManagerId = areaMasterList[roadMasterList[parmRoadID[i]].areaId].roadManagerId;
+		    if (roadMapping[roadManagerId] != 1) {
+		        roadMapping[roadManagerId] = 1;
+		        if (size == index) {
+		            return roadManagerId;
+		        }
+		        size++;
+		    }
+		}
+    }
+    
+    function getBalanceWithMasterId(uint8[] parmRoadID, uint8 masterId) public constant
+        returns (uint256 balance)
+    {
+        for (uint i = 0; i < parmRoadID.length; i++) {
+		    uint8 roadManagerId = areaMasterList[roadMasterList[parmRoadID[i]].areaId].roadManagerId;
+		    if (roadManagerId == masterId) {
+		        balance += getBalance(parmRoadID[i]);
+		    }
+		}
     }
 }
 
@@ -107,75 +154,89 @@ contract Coin {
     address organizer;
     
     struct History {
-        uint256 time;
         uint8 roadManagerId;
         uint256 cost;
     }
-    
-    mapping(address => uint256) balance;
-    mapping(address => History[]) histories;
-    address[] masterAddress;
-    
-    function Coin()
-    {
-        organizer = msg.sender;
-    }
-    
-    function send(address receiver, uint8 roadManagerId) public payable
-    {
-        if (msg.value < balance[receiver]) throw;
-        if (!receiver.send(msg.value)) throw;
-        histories[msg.sender].push(History(currTimeInSeconds(),roadManagerId, balance[receiver]));
-        balance[receiver] = 0;
-    }
 
-    function getHistoriy(address driver, Master master, uint index) public
-        returns (uint256, uint8, uint256)
-    {
-        History[] h = histories[driver];
-        if (h.length <= index) throw;
-        return (h[index].time, h[index].roadManagerId, h[index].cost);
-    }
-    
-    function getHistoriyLength(address driver) public
-        returns (uint length)
-    {
-        length = histories[driver].length;
-    }
-
-    function currTimeInSeconds() internal returns (uint256) {
-        return now;
-    }
-    
-    function getMasterAddress() returns (address[]) {
-        if (msg.sender == organizer) {
-            return masterAddress;
-        }
-    }
-    
-    function getBalance(address masterAddress) returns (uint256 result)
-    {
-        if (msg.sender == organizer) { 
-            result = balance[masterAddress];
-        }
-    }
-    
-    function addBalance(address masterAddress, uint256 amount) {
-        balance[masterAddress] += amount;
-    }
-}
-
-contract Operation {
-    
-    Master master;
-    
-    address creator;
-    
     struct RoadManagerAndRoadIds {
         uint8 roadManagerId;
         address roadManagerAddress;
         uint8[] roadIds;
     }
+    
+    mapping(uint8 => uint256) balance;
+    mapping(address => History[]) histories;
+    uint8[] masterId;
+
+    function Coin()
+    {
+        organizer = msg.sender;
+    }
+    
+    modifier onlyCreator() {
+        if (msg.sender != organizer)
+            throw;
+        _;
+    }
+    
+    function send(uint8 roadManagerId, Master master) public payable
+        onlyCreator 
+    {
+        if (balance[roadManagerId] == 0) return;
+        if (msg.value < balance[roadManagerId]) throw;
+        address receiver = master.getRoadMasterAddress(roadManagerId);
+        if (!receiver.send(balance[roadManagerId])) throw;
+        
+
+        // History[] hInfo = histories[historiesIndex[msg.sender]];
+        // hInfo.push(History(currTimeInSeconds(),roadManagerId, balance[roadManagerId]));
+        // histories[historiesIndex[msg.sender]] = hInfo;
+
+        delete balance[roadManagerId];
+    }
+
+    function getHistoriy(address driver, uint8 index) constant public
+        returns (uint8, uint256)
+    {
+        History[] hInfo = histories[driver];
+        if (hInfo.length <= index) throw;
+        return (hInfo[index].roadManagerId, hInfo[index].cost);
+    }
+    
+    function getHistoriyLength(address driver) constant public
+        returns (uint)
+    {
+        return histories[driver].length;
+    }
+    
+    function addHistory(address senderAddress, uint8 roadManagerId, uint256 amount) public
+    {
+        histories[senderAddress].push(History(roadManagerId, amount));
+    }
+
+    function currTimeInSeconds() public constant returns (uint256) {
+        return now;
+    }
+    
+    function getBalance(uint8 mId) public constant returns (uint256 result)
+    {
+        if (msg.sender == organizer) { 
+            result = balance[mId];
+        }
+    }
+    
+    function addBalance(uint8 mId, uint256 amount) public
+    {
+        if (balance[mId] == 0) {
+            masterId.push(mId);
+        }
+        balance[mId] += amount;
+    }
+}
+
+contract Operation {
+    
+    address creator;
     
     modifier onlyCreator() {
         if (msg.sender != creator)
@@ -188,43 +249,18 @@ contract Operation {
         creator = msg.sender;
     }
     
-    function setMaster(Master masterAddress)
-        onlyCreator
-    {
-        master = masterAddress;
+
+    function getCreator() returns(address) {
+        return creator;
     }
  
-    function payForRoads(Coin coin, uint8[] roadIds) public payable returns (uint8 result) {
-        RoadManagerAndRoadIds[] storage list;
-        string[] nameList;
-        uint256 all = computerBalance(roadIds);
-        if (msg.value < all) throw;
-        for (uint i = 0; i < roadIds.length; i++) {
-            var (id, , mAddress) = master.getRoadMasterInfo(roadIds[i]);
-            bool has = false;
-            for (uint j = 0; j < list.length; j++) {
-                if (list[i].roadManagerId == id) {
-                    has = true;
-                    list[i].roadIds.push(roadIds[i]);
-                }
-            }
-            if (!has) {
-                uint8[] r;
-                r.push(roadIds[i]);
-                list.push(RoadManagerAndRoadIds(id, mAddress, r));
-            }
-        }
-        creator.transfer(all);
-        for (uint k = 0; k < list.length; k++) {
-            uint256 rstBalance = computerBalance(list[k].roadIds);
-            coin.addBalance(list[k].roadManagerAddress, rstBalance);
-            // coin.send(list[k].roadManagerAddress, list[k].roadManagerId, rstBalance);
-        }
+    function payForRoads() public payable {
+        if (!creator.send(msg.value)) throw;
     }
     
     /// 司机调用
 	/// 计算距离
-	function computerDistance(uint8[] parmRoadID) public
+	function computerDistance(Master master, uint8[] parmRoadID) public constant
 			returns (uint256 rstDistance)
 	{
 		for (uint i = 0; i < parmRoadID.length; i++) {
@@ -234,7 +270,7 @@ contract Operation {
 	
 	/// 司机调用
 	/// 计算费用
-	function computerBalance(uint8[] parmRoadID) public
+	function computerBalance(Master master, uint8[] parmRoadID) public constant
 		returns (uint256 rstBalance)
 	{
 		for (uint i = 0; i < parmRoadID.length; i++) {
